@@ -1,29 +1,47 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
 import joblib
 import numpy as np
+import os
 
 app = Flask(__name__)
 
-# Mock model - replace with your actual model later
-class MockModel:
-    def predict(self, X):
-        return [1]  # Always predicts phishing
-    def predict_proba(self, X):
-        return [[0.3, 0.7]]  # Fake confidence
-
-model = MockModel()
+# Load model
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'fast_phish_model.joblib')
+try:
+    model = joblib.load(MODEL_PATH)
+    print("✅ Model loaded successfully")
+except Exception as e:
+    print(f"❌ Model loading failed: {str(e)}")
+    model = None
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
+    if model is None:
+        return jsonify({"error": "Model not loaded"}), 500
+        
     try:
-        features = request.json['features']
-        features = np.array(list(features.values())).reshape(1, -1)
+        data = request.json
+        features = data.get('features', {})
+        
+        # Convert features to array in correct order
+        feature_array = np.array([features[f"feature_{i}"] for i in range(47)]).reshape(1, -1)
+        
+        prediction = int(model.predict(feature_array)[0])
+        confidence = float(model.predict_proba(feature_array)[0][prediction])
+        
         return jsonify({
-            "prediction": int(model.predict(features)[0]),
-            "confidence": float(model.predict_proba(features)[0][1])
+            "prediction": prediction,
+            "confidence": round(confidence, 4),
+            "status": "success"
         })
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 400
 
-if __name__ == '__main__':
-    app.run()
+def handler(req, res):
+    with app.app_context():
+        response = app.full_dispatch_request()
+        res.status(response.status_code)
+        for k, v in response.headers:
+            res.set_header(k, v)
+        return response.data
