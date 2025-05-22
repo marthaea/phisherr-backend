@@ -1,11 +1,19 @@
 {
   "version": 2,
-  "builds": [{
-    "src": "api/index.py",
-    "use": "@vercel/python"
-  }],
-  "routes": [{
-    "src": "/api/(.*)",
-    "dest": "api/index.py"
-  }]
+  "builds": [
+    {
+      "src": "api/*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/fast_phish_model.joblib",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
+    }
+  ]
 }
